@@ -9,10 +9,11 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "3.7"
+  apt_packages:
+    - imagemagick
   jobs:
     pre_install:
-      - apt-get download imagemagick
-      - find . -name "imagemagick*" -print
+      - which convert
       - bash ./scripts/pre_install.sh
 
 sphinx:
