@@ -5,26 +5,23 @@
 
 namespace Test {
     
-template <class T> class Vec
+class Vec
 {
   public:
 
-    T x;
+    float x;
 
+    constexpr Vec (const float x) noexcept;
     constexpr Vec (const Vec& v) noexcept;
-
-    template <class S>  constexpr Vec (const Vec<S>& v) noexcept;
 };
 
-template <class T>
-constexpr inline Vec<T>::Vec (const Vec& v) noexcept
+constexpr inline Vec::Vec (const Vec& v) noexcept
     : x(v.x)
 {
 }
 
-template <class T> template <class S>
-constexpr inline Vec<T>::Vec (const Vec<S>& v) noexcept
-    : x(T(v.x))
+constexpr inline Vec::Vec (const float v) noexcept
+    : x(v)
 {
 }
 
