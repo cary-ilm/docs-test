@@ -12,8 +12,7 @@ build:
   apt_packages:
     - imagemagick
   jobs:
-    pre_install:
-      - which convert
+    build:
       - bash ./scripts/pre_install.sh
 
 sphinx:
