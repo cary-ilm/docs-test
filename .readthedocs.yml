@@ -11,7 +11,8 @@ build:
     python: "3.7"
   jobs:
     pre_install:
-      - yum install ImageMagick
+      - apt-get download imagemagick
+      - find . -name "imagemagick*" -print
       - bash ./scripts/pre_install.sh
 
 sphinx:
@@ -20,4 +21,3 @@ sphinx:
 python:
   install:
     - requirements: docs/requirements.txt
-
