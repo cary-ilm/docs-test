@@ -21,6 +21,8 @@ set(SPHINX_INDEX_FILE ${SPHINX_BUILD}/index.html)
 
 set(SPHINX_OPTS "-W" CACHE STRING "Sphinx build options")
 
+set(TEST_IMAGES_RST_FILE ${PROJECT_SOURCE_DIR}/docs/_test_images/index.rst)
+
 configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
 file(MAKE_DIRECTORY ${DOXYGEN_OUTPUT_DIR})
@@ -31,18 +33,28 @@ add_custom_command(OUTPUT ${DOXYGEN_INDEX_FILE}
                    COMMENT "Running doxygen"
                    VERBATIM)
 
+add_custom_command(OUTPUT ${TEST_IMAGES_RST_FILE}
+                   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/docs/scripts/test_images.py ${TEST_IMAGES_RST_FILE}
+                   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/docs
+                   COMMENT "Running scripts/test_images.py"
+                   VERBATIM)
+
 add_custom_command(OUTPUT ${SPHINX_INDEX_FILE}
                    COMMAND 
-                     ${SPHINX_EXECUTABLE} -b html ${SPHINX_OPTS}
+                     ${SPHINX_EXECUTABLE}
+                     -b html ${SPHINX_OPTS}
                      # Tell Breathe where to find the Doxygen output
                      -Dbreathe_projects.OpenEXR=${DOXYGEN_OUTPUT_DIR}/xml
-                   ${SPHINX_SOURCE} ${SPHINX_BUILD}
+                     ${SPHINX_SOURCE} ${SPHINX_BUILD}
                    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
-                   DEPENDS ${DOXYGEN_INDEX_FILE}
-                   MAIN_DEPENDENCY conf.py
+                   DEPENDS ${DOXYGEN_INDEX_FILE} ${TEST_IMAGES_RST_FILE} 
+                   MAIN_DEPENDENCY ${SPHINX_CONF_PY_FILE}
                    COMMENT "Generating documentation with Sphinx")
 
-add_custom_target(docs ALL DEPENDS ${SPHINX_INDEX_FILE} ${DOXYGEN_INDEX_FILE})
+add_custom_target(docs ALL DEPENDS
+                 ${SPHINX_INDEX_FILE}
+                 ${DOXYGEN_INDEX_FILE}
+                 ${TEST_IMAGES_RST_FILE})
 
 # Add an install target to install the docs
 if(INSTALL_DOCS)
