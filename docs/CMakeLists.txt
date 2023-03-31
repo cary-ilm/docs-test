@@ -35,7 +35,9 @@ add_custom_command(OUTPUT ${DOXYGEN_INDEX_FILE}
 
 add_custom_command(OUTPUT ${TEST_IMAGES_RST_FILE}
                    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/docs/scripts/test_images.py ${TEST_IMAGES_RST_FILE}
-                   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/docs
+                   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+                   DEPENDS
+                   ${PROJECT_SOURCE_DIR}/docs/scripts/test_images.py ${PROJECT_SOURCE_DIR}/docs/test_images.txt
                    COMMENT "Running scripts/test_images.py"
                    VERBATIM)
 

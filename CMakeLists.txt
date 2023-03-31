@@ -18,8 +18,14 @@ endif()
 
 option(BUILD_DOCS "Set ON to build html documentation" ON)
 if (BUILD_DOCS)
+
+  find_package(Python3 COMPONENTS Interpreter)
+  if (NOT Python3_FOUND)
+    message(STATUS "Python3 not found: skipping bin tests")
+    return()
+  endif()
+
   option(INSTALL_DOCS "Set ON to install html documentation" ON)
-  add_subdirectory(docs/cmake)
   add_subdirectory(docs)
 endif()
 

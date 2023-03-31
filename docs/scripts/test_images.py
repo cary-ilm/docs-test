@@ -9,7 +9,8 @@ print(f'cwd: {os.getcwd()}')
 
 directory = os.path.dirname(test_images_rst)
 print(f'os.makedirs({directory})')
-os.makedirs(directory)
+if not os.path.isdir(directory):
+    os.makedirs(directory)
             
 print(f'generating rst for test images ...')
 with open(test_images_rst, 'w') as outfile:
@@ -22,16 +23,17 @@ with open(test_images_rst, 'w') as outfile:
     outfile.write('\n')
     outfile.write('   toctree\n')
 
-with open('_test_images/toctree.rst', 'w') as outfile:
+with open('docs/_test_images/toctree.rst', 'w') as outfile:
     outfile.write('.. toctree::\n')
     outfile.write('   :maxdepth: 0\n')
 #    outfile.write('   :hidden:\n')
     outfile.write('\n')
     outfile.write('   TestImages/AllHalfValues\n')
 
-os.makedirs('_test_images/TestImages')
+if not os.path.isdir('docs/_test_images/TestImages'):
+    os.makedirs('docs/_test_images/TestImages')
 
-with open('_test_images/TestImages/AllHalfValues.rst', 'w') as outfile:
+with open('docs/_test_images/TestImages/AllHalfValues.rst', 'w') as outfile:
     outfile.write('All Half Values\n')
     outfile.write('###############\n')
     outfile.write('\n')
