@@ -18,8 +18,7 @@ def exr_header(exr_path):
     result = run (['exrheader', exr_path],
                   stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if result.returncode != 0:
-        print(result.stderr)
-        return None, None, None
+        raise Exception(f'failed to read header for {exr_path}')
 
     lines = result.stdout.split('\n') 
         
@@ -94,34 +93,32 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
     fd, local_exr = tempfile.mkstemp(".exr")
     os.close(fd)
 
+    header = None
+    
     try:
         
         result = run (['curl', '-f', exr_url, '-o', local_exr], 
                       stdout=PIPE, stderr=PIPE, universal_newlines=True)
         print(' '.join(result.args))
         if result.returncode != 0:
-            raise Exception(f'error: failed to read {exr_url}')
+            raise Exception(f'failed to read {exr_url}')
     
         if not os.path.isfile(local_exr):
-            raise Exception(f'error: failed to read {exr_url}: no such file {local_exr}')
-        
+            raise Exception(f'failed to read {exr_url}: no such file {local_exr}')
         
         result = run (['convert', local_exr, jpg_lpath], 
                       stdout=PIPE, stderr=PIPE, universal_newlines=True)
         print(' '.join(result.args))
         
-        if result.returncode != 0:
-            raise Exception(f'error: failed to convert {exr_url} to {jpg_lpath}')
-        if not os.path.isfile(jpg_lpath):
-            print(f'No jpg: {jpg_lpath}')
-        
+        if result.returncode != 0 or not os.path.isfile(jpg_lpath):
+            raise Exception(f'failed to convert {exr_url} to {jpg_lpath}: {result.stderr}')
+
         header, rows, columns = exr_header(local_exr)
 
         os.remove(local_exr)
 
         if not header:
-            print(f'No header for {local_exr}')
-            return None
+            raise Exception(f'can\'t read header for {local_exr}')
         
         print(f'writing rst {rst_filename}')
 
@@ -163,13 +160,12 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
                     continue
                 write_rst_list_table_row(rstfile, attr_name, rows, columns, header)
 
-    except e:
+    except Exception as e:
 
-        print(f'error: {str(e)}', file=sys.stderr)
-        
         os.remove(local_exr)
-        return None
 
+        raise e
+    
     return header
 
 def write_readme(index_file, repo, tag, lpath):
@@ -199,7 +195,6 @@ def write_readme(index_file, repo, tag, lpath):
 
     except e:
 
-        print(f'failed to read {readme_url}: {str(e)}', file=os.stderr)
         os.unlink(local_readme)
         
     return None
@@ -245,8 +240,7 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
     header = write_exr_page(rst_lpath, exr_url, exr_filename, exr_lpath, jpg_lpath)
 
     if not header:
-        print(f'error: no header for {exr_lpath}', file=sys.stderr)
-        return
+        raise Exception(f'no header for {exr_lpath}')
     
     num_parts = len(header)
     num_channels = 0
@@ -284,13 +278,14 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
     index_file.write(f'            </ul>\n')
     index_file.write(f'          </td>\n')
 
-    notes = readme_notes(readme, exr_filename)
-    if notes:
-        index_file.write(f'          <td style="vertical-align: top; width:400px">\n')
-        index_file.write(f'          <p>\n')
-        index_file.write(notes)
-        index_file.write(f'          </p>\n')
-        index_file.write(f'          </td>\n')
+    if readme:
+        notes = readme_notes(readme, exr_filename)
+        if notes:
+            index_file.write(f'          <td style="vertical-align: top; width:400px">\n')
+            index_file.write(f'          <p>\n')
+            index_file.write(notes)
+            index_file.write(f'          </p>\n')
+            index_file.write(f'          </td>\n')
 
     index_file.write('     <t/r>\n')
 
@@ -299,8 +294,8 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
 repo = sys.argv[1] if len(sys.argv) > 1 else 'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images'
 tag = sys.argv[2] if len(sys.argv) > 2 else 'main'
 
-repo = 'https://raw.githubusercontent.com/cary-ilm/openexr-images'
-tag = 'docs'
+#repo = 'https://raw.githubusercontent.com/cary-ilm/openexr-images'
+#tag = 'docs'
 
 def write_table_open(index_file):
 
@@ -319,49 +314,72 @@ def write_table_close(index_file):
     
 print(f'generating rst for test images ...')
 
-os.makedirs('docs/_test_images', exist_ok=True)
-
-with open('docs/_test_images/index.rst', 'w') as index_file:
-
-    index_file.write('Test Images\n')
-    index_file.write('###########\n')
-    index_file.write('\n')
-    index_file.write('.. toctree::\n')
-    index_file.write('   :caption: Test Images\n')
-    index_file.write('   :maxdepth: 2\n')
-    index_file.write('\n')
-    index_file.write('   toctree\n')
-
-    toctree = []
-    readme = None
+try:
     
-    with open('docs/test_images.txt', 'r') as test_images_file:
-        for line in test_images_file.readlines():
+    os.makedirs('docs/_test_images', exist_ok=True)
 
-            lpath = line.strip('\n')
+    with open('docs/_test_images/index.rst', 'w') as index_file:
+
+        index_file.write('Test Images\n')
+        index_file.write('###########\n')
+        index_file.write('\n')
+        index_file.write('.. toctree::\n')
+        index_file.write('   :caption: Test Images\n')
+        index_file.write('   :maxdepth: 2\n')
+        index_file.write('\n')
+        index_file.write('   toctree\n')
+        index_file.write('\n')
+
+        toctree = []
+        readme = None
+        table_opened = False
+    
+        with open('docs/test_images.txt', 'r') as test_images_file:
+            for line in test_images_file.readlines():
+
+                if line.startswith('#'):
+                    continue
+                
+                lpath = line.strip('\n')
             
-            if os.path.basename(lpath) == "README.rst":
-                if readme:
-                    write_table_close(index_file)
-                readme = write_readme(index_file, repo, tag, lpath)
-                write_table_open(index_file)
-            elif lpath.endswith('.exr'):
-                base_path = write_exr_to_index(index_file, repo, tag, lpath, readme)
-                toctree.append(base_path)
+                if os.path.basename(lpath) == "README.rst":
+                    
+                    if table_opened:
+                        write_table_close(index_file)
+                        readme = write_readme(index_file, repo, tag, lpath)
+                        write_table_open(index_file)
+                        table_opened = True
+                
+                elif lpath.endswith('.exr'):
 
-        if readme:
-            write_table_close(index_file)
+                    if not table_opened:
+                        write_table_open(index_file)
+                        table_opened = True
+                    
+                    base_path = write_exr_to_index(index_file, repo, tag, lpath, readme)
+                    if base_path:
+                        toctree.append(base_path)
 
-    with open('docs/_test_images/toctree.rst', 'w') as toctree_file:
-        toctree_file.write('..\n')
-        toctree_file.write('  SPDX-License-Identifier: BSD-3-Clause\n')
-        toctree_file.write('  Copyright Contributors to the OpenEXR Project.\n')
-        toctree_file.write('\n')
-        toctree_file.write('.. toctree::\n')
-        toctree_file.write('   :maxdepth: 0\n')
-        toctree_file.write('   :hidden:\n')
-        toctree_file.write('\n')
-        for t in toctree:
-            toctree_file.write(f'   {t}\n')
+            if table_opened:
+                write_table_close(index_file)
+
+        with open('docs/_test_images/toctree.rst', 'w') as toctree_file:
+            toctree_file.write('..\n')
+            toctree_file.write('  SPDX-License-Identifier: BSD-3-Clause\n')
+            toctree_file.write('  Copyright Contributors to the OpenEXR Project.\n')
+            toctree_file.write('\n')
+            toctree_file.write('.. toctree::\n')
+            toctree_file.write('   :maxdepth: 0\n')
+            toctree_file.write('   :hidden:\n')
+            toctree_file.write('\n')
+            for t in toctree:
+                toctree_file.write(f'   {t}\n')
+
+except Exception as e:
+    print(f'error: {str(e)}', file=sys.stderr)
+    exit(-1)
+
+exit(0)
+
                 
 
