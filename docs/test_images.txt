@@ -1,1 +1,3 @@
-https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/v1.0/TestImages/GammaChart.exr
+https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/TestImages/README.rst
+https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/TestImages/GammaChart.exr
+https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/TestImages/AllHalfValues.exr
