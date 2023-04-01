@@ -102,9 +102,9 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
         
         result = run (['curl', '-f', exr_url, '-o', local_exr], 
                       stdout=PIPE, stderr=PIPE, universal_newlines=True)
-#        print(f'result.args: {result.args}')
-#        print(f'result.stdout: {result.stdout}')
-#        print(f'result.stderr: {result.stderr}')
+        print(f'result.args: {result.args}')
+        print(f'result.stdout: {result.stdout}')
+        print(f'result.stderr: {result.stderr}')
         if result.returncode != 0:
             raise Exception(f'error: failed to read {exr_url}')
     
@@ -128,8 +128,11 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
         os.remove(local_exr)
 
         if not header:
+            print(f'No header for {local_exr}')
             return None
         
+        print(f'writing rst {rst_filename}')
+
         with open(rst_filename, 'w') as rstfile:
 
             rstfile.write(f'..\n')  
@@ -168,8 +171,10 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
                     continue
                 write_rst_list_table_row(rstfile, attr_name, rows, columns, header)
 
-    except:
+    except e:
 
+        print(f'error: {str(e)}')
+        
         os.remove(local_exr)
         return None
 
@@ -249,6 +254,7 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
     header = write_exr_page(rst_lpath, exr_url, exr_filename, exr_lpath, jpg_lpath)
 
     if not header:
+        print(f'no header for {exr_lpath}')
         return
     
     num_parts = len(header)
