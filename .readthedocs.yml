@@ -15,6 +15,7 @@ build:
     pre_build:
        - python docs/scripts/test_images.py 
        - cat docs/_test_images/index.rst
+       find .
        
 sphinx:
   configuration: docs/conf.py
