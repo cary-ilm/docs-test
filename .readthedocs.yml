@@ -13,8 +13,7 @@ build:
     - imagemagick
   jobs:
     pre_build:
-#      - bash ./scripts/pre_install.sh
-       - python docs/scripts/test_images.py docs/_test_images/index.rst
+       - python docs/scripts/test_images.py 
 
 sphinx:
   configuration: docs/conf.py

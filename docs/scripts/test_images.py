@@ -3,10 +3,8 @@
 # SPDX-License-Identifier: BSD-3-Clause
 # Copyright (c) Contributors to the OpenEXR Project.
 
-import sys, os
+import sys, os, tempfile, atexit
 from subprocess import PIPE, run
-
-exrheader = "exrheader"
 
 convert_png = False
 verbose = False
@@ -14,8 +12,21 @@ verbose = False
 
 gallery = False
 
-def parse_header(lines):
+def exr_header(exr_path):
+    '''Return a dict of the attributes in the exr file's header(s)'''
     
+    print(f'exr_header({exr_path})')
+    
+    result = run (['exrheader', exr_path],
+                  stdout=PIPE, stderr=PIPE, universal_newlines=True)
+    if result.returncode != 0:
+        print(result.stderr)
+        return None, None, None
+
+    lines = result.stdout.split('\n') 
+        
+    name,version = lines[3].split(':')
+
     header = {}
     current_part = "0"
     current_attr = None
@@ -62,7 +73,8 @@ def parse_header(lines):
 
     return header, rows, columns
 
-def write_list_row(outfile, attr_name, rows, columns, header, ignore_attr_name=False):
+def write_rst_list_table_row(outfile, attr_name, rows, columns, header, ignore_attr_name=False):
+    '''Write a row in the rst list-table of parts/attributes on the page for an exr file'''
     
     if ignore_attr_name:
         outfile.write(f'   * -\n')
@@ -79,177 +91,239 @@ def write_list_row(outfile, attr_name, rows, columns, header, ignore_attr_name=F
             value = ''
         outfile.write(f'     - {value}\n')
 
-def write_exr_rst(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
+def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
     
-    result = run (['curl' , exr_url, '-o', '/var/tmp/test.exr'], 
-                  stdout=PIPE, stderr=PIPE, universal_newlines=True)
-    if result.returncode != 0:
-        print(result.stderr)
-        return None
+    print(f'write_exr_page({rst_filename}, {exr_url}, {exr_filename}, {exr_lpath}, {jpg_lpath})')
     
-    result = run ([exrheader, '/var/tmp/test.exr'],
-                  stdout=PIPE, stderr=PIPE, universal_newlines=True)
-#    print(" ".join(result.args))
-#    print(f"stdout: {result.stdout}")
-#    print(f"stderr: {result.stderr}")
-    assert(result.returncode == 0)
+    fd, local_exr = tempfile.mkstemp(".exr")
+    os.close(fd)
 
-    lines = result.stdout.split('\n') 
+    try:
         
-    name,version = lines[3].split(':')
-
-    header, rows, columns = parse_header(lines)
-
-    with open(rst_filename, 'w') as rstfile:
-
-        rstfile.write(f'..\n')  
-        rstfile.write(f'  SPDX-License-Identifier: BSD-3-Clause\n')
-        rstfile.write(f'  Copyright Contributors to the OpenEXR Project.\n')
-        rstfile.write(f'\n')
-
-        rstfile.write(f'{exr_filename}\n')
-        for i in range(0,len(exr_filename)):
-            rstfile.write('#')
-        rstfile.write(f'\n')
-        rstfile.write(f'\n')
-        rstfile.write(f':download:`https://github.com/openexr-images/v1.0/{exr_lpath}<https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images/v1.0/{exr_lpath}>`\n')
-        rstfile.write(f'\n')
-
-        rstfile.write(f'.. image:: https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/{jpg_lpath}\n')
-        rstfile.write(f'   :target: https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/{exr_lpath}\n')
-        rstfile.write(f'\n')
-
-        rstfile.write(f'.. list-table::\n')
-        rstfile.write(f'   :align: left\n')
+        result = run (['curl', '-f', exr_url, '-o', local_exr], 
+                      stdout=PIPE, stderr=PIPE, universal_newlines=True)
+#        print(f'result.args: {result.args}')
+#        print(f'result.stdout: {result.stdout}')
+#        print(f'result.stderr: {result.stderr}')
+        if result.returncode != 0:
+            raise Exception(f'error: failed to read {exr_url}')
+    
+        if not os.path.isfile(local_exr):
+            raise Exception(f'error: failed to read {exr_url}: no such file {local_exr}')
         
-        if 'name' in rows:
-            if len(columns) > 2:
-                rstfile.write(f'   :header-rows: 1\n')
-                rstfile.write(f'\n')
-                write_list_row(rstfile, 'name', rows, columns, header, True)
-            else:
-                rstfile.write(f'\n')
-                write_list_row(rstfile, 'name', rows, columns, header)
-        else:
+        
+        result = run (['convert', local_exr, jpg_lpath], 
+                      stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        print(' '.join(result.args))
+#        print(f'result.stout: {result.stdout}')
+#        print(f'result.stderr: {result.stderr}')
+        
+        if result.returncode != 0:
+            raise Exception(f'error: failed to convert {exr_url} to {jpg_lpath}')
+        if not os.path.isfile(jpg_lpath):
+            print(f'No jpg: {jpg_lpath}')
+        
+        header, rows, columns = exr_header(local_exr)
+
+        os.remove(local_exr)
+
+        if not header:
+            return None
+        
+        with open(rst_filename, 'w') as rstfile:
+
+            rstfile.write(f'..\n')  
+            rstfile.write(f'  SPDX-License-Identifier: BSD-3-Clause\n')
+            rstfile.write(f'  Copyright Contributors to the OpenEXR Project.\n')
             rstfile.write(f'\n')
 
-        for attr_name,height in rows.items():
-            if attr_name == 'name':
-                continue
-            write_list_row(rstfile, attr_name, rows, columns, header)
+            rstfile.write(f'{exr_filename}\n')
+            for i in range(0,len(exr_filename)):
+                rstfile.write('#')
+            rstfile.write(f'\n')
+            rstfile.write(f'\n')
+            rstfile.write(f':download:`{exr_url}<{exr_url}>`\n')
+            rstfile.write(f'\n')
+
+            rstfile.write(f'.. image:: {os.path.basename(jpg_lpath)}\n')
+            rstfile.write(f'   :target: {exr_url}\n')
+            rstfile.write(f'\n')
+
+            rstfile.write(f'.. list-table::\n')
+            rstfile.write(f'   :align: left\n')
+        
+            if 'name' in rows:
+                if len(columns) > 2:
+                    rstfile.write(f'   :header-rows: 1\n')
+                    rstfile.write(f'\n')
+                    write_rst_list_table_row(rstfile, 'name', rows, columns, header, True)
+                else:
+                    rstfile.write(f'\n')
+                    write_rst_list_table_row(rstfile, 'name', rows, columns, header)
+            else:
+                rstfile.write(f'\n')
+
+            for attr_name,height in rows.items():
+                if attr_name == 'name':
+                    continue
+                write_rst_list_table_row(rstfile, attr_name, rows, columns, header)
+
+    except:
+
+        os.remove(local_exr)
+        return None
 
     return header
 
-def write_readme(index_file, readme_url):
+def write_readme(index_file, repo, tag, lpath):
 
-    result = run (['curl' , readme_url, '-o', '/var/tmp/README.rst'], 
-                  stdout=PIPE, stderr=PIPE, universal_newlines=True)
-    if result.returncode != 0:
-        print(result.stderr)
-        return None
-    
-    text = ''
-    found = False
-    with open('/var/tmp/README.rst', 'r') as readme_file:
-        for line in readme_file.readlines():
-            if '.. list-table::' in line:
-                break
-            index_file.write(line)
-        index_file.write('\n')
+    fd, local_readme = tempfile.mkstemp(".rst")
 
-def readme_notes(readme_url, exr_filename):
-
-    if readme_url:
-        return None
+    try:
+        
+        readme_url = f'{repo}/{tag}/{lpath}' 
+        result = run (['curl', '-f', readme_url, '-o', local_readme], 
+                      stdout=PIPE, stderr=PIPE, universal_newlines=True)
+        if result.returncode != 0:
+            raise FileNotFoundError(result.stderr)
     
-    result = run (['curl' , readme_url, '-o', '/var/tmp/README.rst'], 
-                  stdout=PIPE, stderr=PIPE, universal_newlines=True)
-    if result.returncode != 0:
-        print(result.stderr)
-        return None
-    
-    text = ''
-    found = False
-    with open('/var/tmp/README.rst') as infile:
-        for line in infile.readlines():
-            if line.startswith('   * -'):
-                if exr_filename in line:
-                    found = True
-                elif found:
+        text = ''
+        found = False
+        with open(local_readme, 'r') as readme_file:
+            lines = readme_file.readlines()
+            for line in lines:
+                if '.. list-table::' in line:
                     break
-            else:
-                if found:
-                    if line != '\n':
-                        if not line.startswith(' '):
-                            break
-                        text += '             ' + line[7:].replace(' ``',' <b>').replace('``','</b>')
+                index_file.write(line[:-1])
+                index_file.write('\n')
+
+            os.unlink(local_readme)
+            return lines
+
+    except e:
+        os.unlink(local_readme)
+        print(f'failed to read {readme_url}: {str(e)}', file=os.stderr)
+        
+    return None
+        
+def readme_notes(readme, exr_filename):
+
+    found = False
+    text = ''
+    
+    for line in readme:
+        if line.startswith('   * -'):
+            if exr_filename in line:
+                found = True
+            elif found:
+                break
+        else:
+            if found:
+                if line != '\n':
+                    if not line.startswith(' '):
+                        break
+                    text += '             ' + line[7:].replace(' ``',' <b>').replace('``','</b>')
     return text
 
-def write_exr(index_file, exr_url, readme_url):
+def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
 
-    # https://github.com/AcademySoftware/Foundation/openexr-images/v1.0/TestImages/GammaChart.exr
-    words = exr_url.split('/')
-    repo = '/'.join(words[0:3])
-    tag = words[4]
-    exr_lpath = '/'.join(words[5:])
-    dirname = '_test_images/' + os.path.dirname(exr_lpath) # v2/LeftView
-    os.makedirs(dirname, exist_ok=True)
-    exr_filename = os.path.basename(exr_lpath) # Ground.exr
-    base_path = os.path.splitext(exr_lpath)[0] # v2/LeftView/Ground
-    jpg_lpath = base_path + '.jpg' # v2/LeftView/Ground.jpg
-    rst_filename = f'_test_images/{base_path}.rst' # v2/LeftView/Ground.rst
+    # repo = 'https://raw.githubusercontent.com/cary-ilm/openexr-images'
+    # tag = 'docs'
+    # exr_lpath = v2/LeftView/Ground.exr
 
-    header = write_exr_rst(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath)
+    test_images = 'docs/_test_images/'
+    output_dirname = test_images + os.path.dirname(exr_lpath) # docs/_test_images/v2/LeftView
+    os.makedirs(output_dirname, exist_ok=True)
+    base_path = os.path.splitext(exr_lpath)[0]       # v2/LeftView/Ground
+    exr_filename = os.path.basename(exr_lpath)       # Ground.exr
+    exr_basename = os.path.splitext(exr_filename)[0] # Ground
+    exr_dirname = os.path.dirname(exr_lpath)         # v2/LeftView
+    rst_lpath = f'{test_images}/{exr_dirname}/{exr_basename}.rst' # docs/_test_images/v2/LeftView/Ground.rst
+    jpg_rpath = f'{exr_dirname}/{exr_dirname.replace("/", "_")}_{exr_basename}.jpg'
+    jpg_lpath =  test_images + jpg_rpath # docs/_test_images/v2/LeftView/Ground.K@#YSDF.jpg
 
+    exr_url = f'{repo}/{tag}/{exr_lpath}'
+    
+    print(f'write_exr_to_index({exr_lpath})')
+    
+    header = write_exr_page(rst_lpath, exr_url, exr_filename, exr_lpath, jpg_lpath)
+
+    if not header:
+        return
+    
     num_parts = len(header)
     num_channels = 0
     for p,v in header.items():
         num_channels += len(v)
 
-        src = f'{repo}/{tag}/{jpg_lpath}'
+    index_file.write('     <tr>\n')
+    index_file.write(f'          <td style="vertical-align: top; width:250px">\n')
+    index_file.write(f'              <a href={base_path}.html> <img width="250" src="../_images/{os.path.basename(jpg_rpath)}"> </a>\n') 
+    index_file.write(f'          </td>\n')
+    index_file.write(f'          <td style="vertical-align: top; width:250px">\n')
+    index_file.write(f'            <b> {exr_filename} </b>\n')
+    index_file.write(f'            <ul>\n')
+    if num_parts == 1:
+        index_file.write(f'                <li> single part </li>\n')
+    else:
+        index_file.write(f'                <li> {num_parts} parts </li>\n')
+    if num_parts == 1:
+        index_file.write(f'                <li> 1 channel </li>\n')
+    else:
+        index_file.write(f'                <li> {num_channels} channels </li>\n')
 
-        index_file.write('     <tr>\n')
-        index_file.write(f'          <td style="vertical-align: top; width:250px">\n')
-        index_file.write(f'              <a href={base_path}.html> <img width="250" src="{src}"> </a>\n') 
+    if "type" in header["0"]:
+        index_file.write(f'                <li> {header["0"]["type"]} </li>\n')
+    if "compression" in header["0"]:
+        compression = header["0"]["compression"]
+        if compression == "zip, individual scanlines":
+            compression = "zip"
+        elif compression == "zip, multi-scanline blocks":
+            compression = "zips"
+        index_file.write(f'                <li> {compression} compression </li>\n')
+    if "envmap" in header["0"]:
+        index_file.write(f'                <li> {header["0"]["envmap"]} </li>\n')
+
+    index_file.write(f'            </ul>\n')
+    index_file.write(f'          </td>\n')
+
+    notes = readme_notes(readme, exr_filename)
+    if notes:
+        index_file.write(f'          <td style="vertical-align: top; width:400px">\n')
+        index_file.write(f'          <p>\n')
+        index_file.write(notes)
+        index_file.write(f'          </p>\n')
         index_file.write(f'          </td>\n')
-        index_file.write(f'          <td style="vertical-align: top; width:250px">\n')
-        index_file.write(f'            <b> {exr_filename} </b>\n')
-        index_file.write(f'            <ul>\n')
-        if num_parts == 1:
-            index_file.write(f'                <li> single part </li>\n')
-        else:
-            index_file.write(f'                <li> {num_parts} parts </li>\n')
-        if num_parts == 1:
-            index_file.write(f'                <li> 1 channel </li>\n')
-        else:
-            index_file.write(f'                <li> {num_channels} channels </li>\n')
 
-        if "type" in header["0"]:
-            index_file.write(f'                <li> {header["0"]["type"]} </li>\n')
-        if "compression" in header["0"]:
-            compression = header["0"]["compression"]
-            if compression == "zip, individual scanlines":
-                compression = "zip"
-            elif compression == "zip, multi-scanline blocks":
-                compression = "zips"
-            index_file.write(f'                <li> {compression} compression </li>\n')
-        if "envmap" in header["0"]:
-            index_file.write(f'                <li> {header["0"]["envmap"]} </li>\n')
-
-        index_file.write(f'            </ul>\n')
-        index_file.write(f'          </td>\n')
-
-        notes = readme_notes(readme_url, exr_filename)
-        if notes:
-            index_file.write(f'          <td style="vertical-align: top; width:400px">\n')
-            index_file.write(f'          <p>\n')
-            index_file.write(notes)
-            index_file.write(f'          </p>\n')
-            index_file.write(f'          </td>\n')
+    index_file.write('     <t/r>\n')
 
     return base_path
 
+repo = sys.argv[1] if len(sys.argv) > 1 else 'https://raw.githubusercontent.com/AcademySoftwareFoundation/openexr-images'
+tag = sys.argv[2] if len(sys.argv) > 2 else 'main'
+
+repo = 'https://raw.githubusercontent.com/cary-ilm/openexr-images'
+tag = 'docs'
+
+def write_table_open(index_file):
+
+    index_file.write(f'.. raw:: html\n')
+    index_file.write(f'\n')
+    index_file.write(f'   <embed>\n')
+    index_file.write(f'   <table>\n')
+    index_file.write(f'\n')
+    
+def write_table_close(index_file):
+
+    index_file.write(f'\n')
+    index_file.write(f'   </table>\n')
+    index_file.write(f'   </embed>\n')
+    index_file.write(f'\n')
+    
 print(f'generating rst for test images ...')
+
+os.makedirs('docs/_test_images', exist_ok=True)
+
 with open('docs/_test_images/index.rst', 'w') as index_file:
 
     index_file.write('Test Images\n')
@@ -262,17 +336,24 @@ with open('docs/_test_images/index.rst', 'w') as index_file:
     index_file.write('   toctree\n')
 
     toctree = []
+    readme = None
     
     with open('docs/test_images.txt', 'r') as test_images_file:
         for line in test_images_file.readlines():
-            url = line.strip('\n')
 
-            if os.path.basename(url) == "README.rst":
-                write_readme(index_file, url)
-                readme_url = url
-            elif url.endswith('.exr'):
-                base_path = write_exr(index_file, url, readme_url)
+            lpath = line.strip('\n')
+            
+            if os.path.basename(lpath) == "README.rst":
+                if readme:
+                    write_table_close(index_file)
+                readme = write_readme(index_file, repo, tag, lpath)
+                write_table_open(index_file)
+            elif lpath.endswith('.exr'):
+                base_path = write_exr_to_index(index_file, repo, tag, lpath, readme)
                 toctree.append(base_path)
+
+        if readme:
+            write_table_close(index_file)
 
     with open('docs/_test_images/toctree.rst', 'w') as toctree_file:
         toctree_file.write('..\n')
@@ -287,260 +368,3 @@ with open('docs/_test_images/index.rst', 'w') as index_file:
             toctree_file.write(f'   {t}\n')
                 
 
-
-        
-####################
-
-# def write_directory(index_file, exr_root, directory):
-    
-#     print(f'write_directory({exr_root}, {directory}')
-    
-#     toctree = []
-#     exrs = []
-    
-#     for filename in os.listdir(directory):
-#         if filename.startswith('.'):
-#             continue
-        
-#         path = f'{directory}/{filename}'
-
-#         if os.path.basename(filename) == 'README.rst':
-#             index_file.write('\n')
-#             with open(path, 'r') as f:
-#                 for line in f.readlines():
-#                     if '.. list-table::' in line:
-#                         break
-#                     index_file.write(line)
-#             index_file.write('\n')
-#         elif filename.endswith('.exr'):
-#             exrs.append(path)
-                                 
-#     index_file.write('.. raw:: html\n')
-#     index_file.write('\n')
-#     index_file.write('   <embed>\n')
-#     index_file.write('   <table style="border:0">\n')
-#     if gallery:
-#         index_file.write('     <tr>\n')
-            
-#     row = 0
-    
-#     exrs.sort()
-    
-#     for path in exrs:
-
-#         print(f'processing {path}')
-    
-#         # path=/home/cary/src/cary-ilm/openexr-images/v2/LeftView/Ground.exr
-        
-#         exr_lpath = path.lstrip(exr_root) # v2/LeftView/Ground.exr
-#         dirname = os.path.dirname(exr_lpath) # v2/LeftView
-#         os.makedirs(dirname, exist_ok=True)
-#         exr_filename = os.path.basename(exr_lpath) # Ground.exr
-#         base_path = os.path.splitext(exr_lpath)[0] # v2/LeftView/Ground
-#         jpg_lpath = base_path + '.jpg' # v2/LeftView/Ground.jpg
-#         rst_filename = base_path + '.rst' # v2/LeftView/Ground.rst
-#         readme_path = os.path.dirname(path) + '/README.rst' 
-#         header = write_exr_rst(rst_filename, path, exr_filename, exr_lpath, jpg_lpath)
-
-#         num_parts = len(header)
-#         num_channels = 0
-#         for p,v in header.items():
-#             num_channels += len(v)
-
-#         if gallery:
-            
-#             if row > 0 and row % 3 == 0:
-#                 index_file.write('     </tr>\n')
-#                 index_file.write('     <tr>\n')
-        
-#             src = f'https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/{jpg_lpath}'
-#             index_file.write(f'          <td style="vertical-align: top;">\n')
-#             index_file.write(f'            <figure style="margin:0">\n') 
-#             index_file.write(f'              <a href={base_path}.html> <img width="235" src="{src}"> </a>\n') 
-#             index_file.write(f'              <figcaption>\n')
-#             index_file.write(f'              {exr_filename}\n')
-#             index_file.write(f'              <ul>\n')
-
-#             if num_parts == 1:
-#                 index_file.write(f'                <li> single part </li>\n')
-#             else:
-#                 index_file.write(f'                <li> {num_parts} parts </li>\n')
-#             if num_parts == 1:
-#                 index_file.write(f'                <li> 1 channel </li>\n')
-#             else:
-#                 index_file.write(f'                <li> {num_channels} channels </li>\n')
-
-#             if "type" in header["0"]:
-#                 index_file.write(f'                <li> {header["0"]["type"]} </li>\n')
-#             if "compression" in header["0"]:
-#                 compression = header["0"]["compression"]
-#                 if compression == "zip, individual scanlines":
-#                     compression = "zip"
-#                 elif compression == "zip, multi-scanline blocks":
-#                     compression = "zips"
-#                 index_file.write(f'                <li> {compression} compression </li>\n')
-#             if "envmap" in header["0"]:
-#                 index_file.write(f'                <li> {header["0"]["envmap"]} </li>\n')
-
-#             index_file.write(f'              </ul>\n')
-#             index_file.write(f'              </figcaption>\n')
-#             index_file.write(f'            </figure>\n')
-#             index_file.write(f'          </td> \n')
-#         else:
-
-#             src = f'https://raw.githubusercontent.com/cary-ilm/openexr-images/docs/{jpg_lpath}'
-#             index_file.write('     <tr>\n')
-#             index_file.write(f'          <td style="vertical-align: top; width:250px">\n')
-#             index_file.write(f'              <a href={base_path}.html> <img width="250" src="{src}"> </a>\n') 
-#             index_file.write(f'          </td>\n')
-#             index_file.write(f'          <td style="vertical-align: top; width:250px">\n')
-#             index_file.write(f'            <b> {exr_filename} </b>\n')
-#             index_file.write(f'            <ul>\n')
-#             if num_parts == 1:
-#                 index_file.write(f'                <li> single part </li>\n')
-#             else:
-#                 index_file.write(f'                <li> {num_parts} parts </li>\n')
-#             if num_parts == 1:
-#                 index_file.write(f'                <li> 1 channel </li>\n')
-#             else:
-#                 index_file.write(f'                <li> {num_channels} channels </li>\n')
-
-#             if "type" in header["0"]:
-#                 index_file.write(f'                <li> {header["0"]["type"]} </li>\n')
-#             if "compression" in header["0"]:
-#                 compression = header["0"]["compression"]
-#                 if compression == "zip, individual scanlines":
-#                     compression = "zip"
-#                 elif compression == "zip, multi-scanline blocks":
-#                     compression = "zips"
-#                 index_file.write(f'                <li> {compression} compression </li>\n')
-#             if "envmap" in header["0"]:
-#                 index_file.write(f'                <li> {header["0"]["envmap"]} </li>\n')
-
-#             index_file.write(f'            </ul>\n')
-#             index_file.write(f'          </td>\n')
-
-#             notes = readme_notes(readme_path, exr_filename)
-#             if notes:
-#                 index_file.write(f'          <td style="vertical-align: top; width:400px">\n')
-#                 index_file.write(f'          <p>\n')
-#                 index_file.write(notes)
-#                 index_file.write(f'          </p>\n')
-#                 index_file.write(f'          </td>\n')
-                
-#             index_file.write('     </tr>\n')
-#         row += 1
-
-#         toctree.append(f'{base_path}')
-    
-#         if convert_png:
-#             command = ['ffmpeg', '-i', exr_full_path, png_filename]
-#             print(f"running {' '.join(command)}")
-#             result = run (command, stdout=PIPE, stderr=PIPE, universal_newlines=True)
-#             print(f"stdout: {result.stdout}")
-#             print(f"stderr: {result.stderr}")
-            
-#     if gallery:
-#         index_file.write('     </tr>\n')
-
-#     index_file.write('   </table>\n')
-#     index_file.write('   </embed>\n')
-#     index_file.write('\n')
-
-#     return toctree
-        
-# def write_index(exr_root):
-    
-#     index_filename = "index.rst"
-#     index_file = open(index_filename, 'w')
-
-#     index_file.write('..\n')
-#     index_file.write('  SPDX-License-Identifier: BSD-3-Clause\n')
-#     index_file.write('  Copyright Contributors to the OpenEXR Project.\n')
-#     index_file.write('\n')
-#     index_file.write('.. _Test Images:\n')
-#     index_file.write('\n')
-
-#     index_file.write('.. toctree::\n')
-#     index_file.write('   :caption: Test Images\n')
-#     index_file.write('   :maxdepth: 2\n')
-#     index_file.write('\n')
-#     index_file.write('   index_toctree\n')
-#     index_file.write('\n')
-
-#     sections = [ 
-#             "TestImages",
-#             "ScanLines",
-#             "Tiles",
-#             "Chromaticities",
-#             "LuminanceChroma",
-#             "DisplayWindow",
-#             "Beachball",
-#             "MultiView",
-#             "MultiResolution",
-#             "v2/Stereo",
-#             "v2/LeftView",
-#             "v2/LowResLeftView",
-#     ]
-
-#     toctree = []
-#     for section in sections:
-#         toctree += write_directory(index_file, exr_root, exr_root + '/' + section) 
-    
-#     with open('index_toctree.rst', 'w') as toctree_file:
-#         toctree_file.write('..\n')
-#         toctree_file.write('  SPDX-License-Identifier: BSD-3-Clause\n')
-#         toctree_file.write('  Copyright Contributors to the OpenEXR Project.\n')
-#         toctree_file.write('\n')
-#         toctree_file.write('.. toctree::\n')
-#         toctree_file.write('   :maxdepth: 0\n')
-#         toctree_file.write('   :hidden:\n')
-#         toctree_file.write('\n')
-#         for t in toctree:
-#             toctree_file.write(f'   {t}\n')
-
-# #!/usr/bin/env python
-
-# import sys, os
-# from subprocess import PIPE, run
-
-# test_images_rst = sys.argv[1]
-# print(f'test_images.py {sys.argv}')
-# print(f'cwd: {os.getcwd()}')
-
-# directory = os.path.dirname(test_images_rst)
-# print(f'os.makedirs({directory})')
-# if not os.path.isdir(directory):
-#     os.makedirs(directory)
-            
-# print(f'generating rst for test images ...')
-# with open('docs/_test_images/index.rst', 'w') as outfile:
-#     outfile.write('Test Images\n')
-#     outfile.write('###########\n')
-#     outfile.write('\n')
-#     outfile.write('.. toctree::\n')
-#     outfile.write('   :caption: Test Images\n')
-#     outfile.write('   :maxdepth: 2\n')
-#     outfile.write('\n')
-#     outfile.write('   toctree\n')
-
-# with open('docs/_test_images/toctree.rst', 'w') as outfile:
-#     outfile.write('.. toctree::\n')
-#     outfile.write('   :maxdepth: 0\n')
-# #    outfile.write('   :hidden:\n')
-#     outfile.write('\n')
-#     outfile.write('   TestImages/AllHalfValues\n')
-
-# if not os.path.isdir('docs/_test_images/TestImages'):
-#     os.makedirs('docs/_test_images/TestImages')
-
-# with open('docs/_test_images/TestImages/AllHalfValues.rst', 'w') as outfile:
-#     outfile.write('All Half Values\n')
-#     outfile.write('###############\n')
-#     outfile.write('\n')
-    
-# print(f'generating rst for test images ... done.')
-
-
-
-            
