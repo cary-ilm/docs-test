@@ -15,8 +15,6 @@ gallery = False
 def exr_header(exr_path):
     '''Return a dict of the attributes in the exr file's header(s)'''
     
-    print(f'exr_header({exr_path})')
-    
     result = run (['exrheader', exr_path],
                   stdout=PIPE, stderr=PIPE, universal_newlines=True)
     if result.returncode != 0:
@@ -93,8 +91,6 @@ def write_rst_list_table_row(outfile, attr_name, rows, columns, header, ignore_a
 
 def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
     
-    print(f'write_exr_page({rst_filename}, {exr_url}, {exr_filename}, {exr_lpath}, {jpg_lpath})')
-    
     fd, local_exr = tempfile.mkstemp(".exr")
     os.close(fd)
 
@@ -102,9 +98,7 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
         
         result = run (['curl', '-f', exr_url, '-o', local_exr], 
                       stdout=PIPE, stderr=PIPE, universal_newlines=True)
-        print(f'result.args: {result.args}')
-        print(f'result.stdout: {result.stdout}')
-        print(f'result.stderr: {result.stderr}')
+        print(' '.join(result.args))
         if result.returncode != 0:
             raise Exception(f'error: failed to read {exr_url}')
     
@@ -115,8 +109,6 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
         result = run (['convert', local_exr, jpg_lpath], 
                       stdout=PIPE, stderr=PIPE, universal_newlines=True)
         print(' '.join(result.args))
-#        print(f'result.stout: {result.stdout}')
-#        print(f'result.stderr: {result.stderr}')
         
         if result.returncode != 0:
             raise Exception(f'error: failed to convert {exr_url} to {jpg_lpath}')
@@ -173,7 +165,7 @@ def write_exr_page(rst_filename, exr_url, exr_filename, exr_lpath, jpg_lpath):
 
     except e:
 
-        print(f'error: {str(e)}')
+        print(f'error: {str(e)}', file=sys.stderr)
         
         os.remove(local_exr)
         return None
@@ -206,8 +198,9 @@ def write_readme(index_file, repo, tag, lpath):
             return lines
 
     except e:
-        os.unlink(local_readme)
+
         print(f'failed to read {readme_url}: {str(e)}', file=os.stderr)
+        os.unlink(local_readme)
         
     return None
         
@@ -223,11 +216,11 @@ def readme_notes(readme, exr_filename):
             elif found:
                 break
         else:
-            if found:
-                if line != '\n':
-                    if not line.startswith(' '):
-                        break
-                    text += '             ' + line[7:].replace(' ``',' <b>').replace('``','</b>')
+            if found and line != '\n':
+                if not line.startswith(' '):
+                    break
+                text += '             '
+                text += line[7:].replace(' ``',' <b>').replace('``','</b>')
     return text
 
 def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
@@ -249,12 +242,10 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
 
     exr_url = f'{repo}/{tag}/{exr_lpath}'
     
-    print(f'write_exr_to_index({exr_lpath})')
-    
     header = write_exr_page(rst_lpath, exr_url, exr_filename, exr_lpath, jpg_lpath)
 
     if not header:
-        print(f'no header for {exr_lpath}')
+        print(f'error: no header for {exr_lpath}', file=sys.stderr)
         return
     
     num_parts = len(header)

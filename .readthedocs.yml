@@ -10,13 +10,11 @@ build:
   tools:
     python: "3.9"
   apt_packages:
-    - imagemagick
-    - openexr
+    - imagemagick # for convert, for test images
+    - openexr     # for exrheader, for test images
   jobs:
     pre_build:
        - python docs/scripts/test_images.py 
-       - cat docs/_test_images/index.rst
-       - find .
        
 sphinx:
   configuration: docs/conf.py
