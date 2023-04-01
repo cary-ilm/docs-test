@@ -14,7 +14,8 @@ build:
   jobs:
     pre_build:
        - python docs/scripts/test_images.py 
-
+       - cat docs/_test_images/index.rst
+       
 sphinx:
   configuration: docs/conf.py
 

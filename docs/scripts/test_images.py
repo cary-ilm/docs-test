@@ -238,7 +238,7 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
     exr_filename = os.path.basename(exr_lpath)       # Ground.exr
     exr_basename = os.path.splitext(exr_filename)[0] # Ground
     exr_dirname = os.path.dirname(exr_lpath)         # v2/LeftView
-    rst_lpath = f'{test_images}/{exr_dirname}/{exr_basename}.rst' # docs/_test_images/v2/LeftView/Ground.rst
+    rst_lpath = f'{test_images}{exr_dirname}/{exr_basename}.rst' # docs/_test_images/v2/LeftView/Ground.rst
     jpg_rpath = f'{exr_dirname}/{exr_dirname.replace("/", "_")}_{exr_basename}.jpg'
     jpg_lpath =  test_images + jpg_rpath # docs/_test_images/v2/LeftView/Ground.K@#YSDF.jpg
 
