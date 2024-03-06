@@ -26,9 +26,9 @@ set(OPENEXR_TEST_IMAGE_REPO "https://raw.githubusercontent.com/cary-ilm/openexr-
 set(OPENEXR_TEST_IMAGE_TAG "docs" 
     CACHE STRING "Tag for test image repo")
 
-set(TEST_IMAGE_INDEX_FILE ${PROJECT_SOURCE_DIR}/docs/_test_images/index.rst)
-set(TEST_IMAGE_PY_FILE ${PROJECT_SOURCE_DIR}/docs/scripts/test_images.py)
-set(TEST_IMAGE_INPUT_FILE ${PROJECT_SOURCE_DIR}/docs/test_images.txt)
+set(TEST_IMAGE_INDEX_FILE ${PROJECT_SOURCE_DIR}/website/_test_images/index.rst)
+set(TEST_IMAGE_PY_FILE ${PROJECT_SOURCE_DIR}/website/scripts/test_images.py)
+set(TEST_IMAGE_INPUT_FILE ${PROJECT_SOURCE_DIR}/website/test_images.txt)
 
 configure_file(${DOXYFILE_IN} ${DOXYFILE_OUT} @ONLY)
 
