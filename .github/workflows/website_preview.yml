@@ -9,8 +9,6 @@ on:
   pull_request_target:
     types:
       - opened
-    paths:
-      - 'website/**'
 
 permissions:
   pull-requests: write
