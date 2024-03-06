@@ -8,7 +8,7 @@ OpenEXR
 #######
 
 .. toctree::
-   :caption: OpenEXR
+   :caption: Test 1
    :maxdepth: 1
 
 .. sidebar:: 
