@@ -9,9 +9,9 @@ on:
   pull_request_target:
     types:
       - opened
-    path:
+    paths:
       - 'website/**'
-      - '.github/workflows/website_workflow.yml'
+      - '.github/workflows/website_preview.yml'
 
 permissions:
   pull-requests: write

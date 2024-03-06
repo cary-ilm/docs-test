@@ -18,7 +18,7 @@ on:
       - RB-3.*
     tags-ignore:
       - v3.[0-9]+.[0-9]+-rc*
-    path:
+    paths:
       - 'website/**'
       - '.github/workflows/website_workflow.yml'
       
@@ -28,7 +28,7 @@ on:
       - RB-3.*
     tags-ignore:
       - v3.[0-9]+.[0-9]+-rc*
-    path:
+    paths:
       - 'website/**'
       - '.github/workflows/website_workflow.yml'
 
