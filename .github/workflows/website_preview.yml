@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: BSD-3-Clause
+# Copyright (c) Contributors to the OpenEXR Project.
+#
+# GitHub Actions workflow file
+# https://help.github.com/en/actions/reference/workflow-syntax-for-github-actions
+
+name: Website preview link
+on:
+  pull_request_target:
+    types:
+      - opened
+    path:
+      - 'website/**'
+      - '.github/workflows/website_workflow.yml'
+
+permissions:
+  pull-requests: write
+
+jobs:
+  pull-request-website-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: readthedocs/actions/preview@v1
+        with:
+          project-slug: "cary-ilm-docs-test"
+          message-template: "Website preview: {docs-pr-index-url}"
+
+      
