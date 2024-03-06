@@ -1,0 +1,5 @@
+TestImages/README.rst
+TestImages/SquaresSwirls.exr
+MultiView/Balls.exr
+v2/Stereo/Balls.exr
+TestImages/AllHalfValues.exr

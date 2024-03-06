@@ -1,2 +1,4 @@
+sphinx == 4.4.0
 breathe
-sphinx == 4.0.3
+sphinx-press-theme
+
