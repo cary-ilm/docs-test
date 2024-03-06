@@ -13,18 +13,12 @@ on:
   workflow_dispatch:
 
   push:
-    branches:-ignore:
-      - RB-2.*
-      - RB-3.*
-    tags-ignore:
-      - v3.[0-9]+.[0-9]+-rc*
-      
+    paths:
+      - '**'
+          
   pull_request:
-    branches:-ignore:
-      - RB-2.*
-      - RB-3.*
-    tags-ignore:
-      - v3.[0-9]+.[0-9]+-rc*
+    paths:
+      - '**'
 
 permissions:
   contents: read
@@ -63,4 +57,8 @@ jobs:
                 --target website \
                 --config Release
         working-directory: _build
-    
+      - name: Preview link 
+        uses: readthedocs/actions/preview@v1
+        with:
+          project-slug: "cary-ilm-docs-test"
+          message-template: "Website preview: {docs-pr-index-url}"    
