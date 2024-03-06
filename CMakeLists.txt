@@ -26,6 +26,6 @@ if (BUILD_DOCS)
   endif()
 
   option(INSTALL_DOCS "Set ON to install html documentation" ON)
-  add_subdirectory(docs)
+  add_subdirectory(website)
 endif()
 
