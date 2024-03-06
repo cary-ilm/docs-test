@@ -1,4 +1,4 @@
-sphinx == 4.4.0
+sphinx >= 5.0
 breathe
 sphinx-press-theme
 
