@@ -15,7 +15,7 @@ OpenEXR
 
      .. image:: images/windowExample1.small.png
 
-OpenEXR provides the specification and reference implementation of the
+Test 4 OpenEXR provides the specification and reference implementation of the
 EXR file format, the professional-grade image storage format of the
 motion picture industry.
 
