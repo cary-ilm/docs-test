@@ -224,7 +224,7 @@ def write_exr_to_index(index_file, repo, tag, exr_lpath, readme):
     # tag = 'docs'
     # exr_lpath = v2/LeftView/Ground.exr
 
-    test_images = 'docs/_test_images/'
+    test_images = 'website/_test_images/'
     output_dirname = test_images + os.path.dirname(exr_lpath) # docs/_test_images/v2/LeftView
     os.makedirs(output_dirname, exist_ok=True)
     base_path = os.path.splitext(exr_lpath)[0]       # v2/LeftView/Ground
@@ -316,9 +316,9 @@ print(f'generating rst for test images ...')
 
 try:
     
-    os.makedirs('docs/_test_images', exist_ok=True)
+    os.makedirs('website/_test_images', exist_ok=True)
 
-    with open('docs/_test_images/index.rst', 'w') as index_file:
+    with open('website/_test_images/index.rst', 'w') as index_file:
 
         index_file.write('Test Images\n')
         index_file.write('###########\n')
@@ -334,7 +334,7 @@ try:
         readme = None
         table_opened = False
     
-        with open('docs/test_images.txt', 'r') as test_images_file:
+        with open('website/test_images.txt', 'r') as test_images_file:
             for line in test_images_file.readlines():
 
                 if line.startswith('#'):
@@ -363,7 +363,7 @@ try:
             if table_opened:
                 write_table_close(index_file)
 
-        with open('docs/_test_images/toctree.rst', 'w') as toctree_file:
+        with open('website/_test_images/toctree.rst', 'w') as toctree_file:
             toctree_file.write('..\n')
             toctree_file.write('  SPDX-License-Identifier: BSD-3-Clause\n')
             toctree_file.write('  Copyright Contributors to the OpenEXR Project.\n')
