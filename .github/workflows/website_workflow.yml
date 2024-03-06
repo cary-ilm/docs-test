@@ -16,8 +16,6 @@ on:
       - RB-3.*
     tags-ignore:
       - v3.[0-9]+.[0-9]+-rc*
-    paths:
-      - 'website/**'
       
   pull_request:
     branches:-ignore:
@@ -25,8 +23,6 @@ on:
       - RB-3.*
     tags-ignore:
       - v3.[0-9]+.[0-9]+-rc*
-    paths:
-      - 'website/**'
 
 permissions:
   contents: read
